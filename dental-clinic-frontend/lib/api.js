@@ -74,6 +74,14 @@ export async function deleteDoctor(id) {
   return request(`/api/doctors/${id}`, { method: "DELETE" });
 }
 
+export async function updateAppointment(id, payload) {
+  const data = await request(`/api/appointments/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return normalizeAppointment(data);
+}
+
 export async function cancelAppointment(id) {
   return request(`/api/appointments/${id}/cancel`, { method: "PATCH" });
 }
