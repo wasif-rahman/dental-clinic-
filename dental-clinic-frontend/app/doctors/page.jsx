@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createDoctor, deleteDoctor, getDoctors, updateDoctor } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import DoctorCard from "../../components/DoctorCard";
 import Modal from "../../components/Modal";
 import { Empty } from "../../components/States";
@@ -9,6 +10,7 @@ import { Empty } from "../../components/States";
 const emptyForm = { name: "", specialization: "", email: "", phone: "" };
 
 export default function DoctorsPage() {
+  const { user, isDoctor, loading: authLoading } = useAuth();
   const [doctors, setDoctors] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -16,6 +18,7 @@ export default function DoctorsPage() {
 
   useEffect(() => {
     async function loadDoctors() {
+      if (!user || isDoctor) return;
       try {
         const data = await getDoctors();
         setDoctors(data);
@@ -25,7 +28,19 @@ export default function DoctorsPage() {
     }
 
     loadDoctors();
-  }, []);
+  }, [user, isDoctor]);
+
+  if (!authLoading && isDoctor) {
+    return (
+      <div className="bg-white border border-parchment-400 rounded-2xl p-8 text-center max-w-lg mx-auto mt-12 shadow-sm">
+        <div className="text-4xl mb-3">🔒</div>
+        <h3 className="text-lg font-bold text-space_indigo mb-2">Administrator Access Required</h3>
+        <p className="text-sm text-dusty_grape">
+          Doctor directory management and staff creation are reserved for Clinic Administrators.
+        </p>
+      </div>
+    );
+  }
 
   function openAddModal() {
     setForm(emptyForm);
@@ -66,11 +81,11 @@ export default function DoctorsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-slate-800">Doctors</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h2 className="text-xl font-semibold text-space_indigo">Doctors</h2>
         <button
           onClick={openAddModal}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+          className="px-4 py-2 bg-space_indigo text-parchment rounded-md text-sm font-medium hover:bg-space_indigo-600 shadow-sm transition"
         >
           + Add Doctor
         </button>
@@ -127,7 +142,7 @@ export default function DoctorsPage() {
           />
           <button
             type="submit"
-            className="w-full py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+            className="w-full py-2 bg-space_indigo text-parchment rounded-md text-sm font-medium hover:bg-space_indigo-600 transition"
           >
             {editingId ? "Save Changes" : "Add Doctor"}
           </button>

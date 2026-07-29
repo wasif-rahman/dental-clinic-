@@ -1,61 +1,69 @@
 const statusColor = {
-  scheduled: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
+  scheduled: "bg-space_indigo-600/15 text-space_indigo border border-space_indigo-600/30",
+  completed: "bg-emerald-100 text-emerald-800 border border-emerald-300",
+  cancelled: "bg-almond_silk-600/30 text-almond_silk-100 border border-almond_silk-500",
 };
 
 export default function AppointmentTable({ appointments, doctors, onEdit, onCancel }) {
-  const doctorName = (id) => doctors.find((d) => d.id === id)?.name ?? "Unknown";
+  const getDoctorName = (a) =>
+    a.doctor?.name || doctors.find((d) => d.id === (a.doctor_id ?? a.doctorId))?.name || "Unknown";
 
   if (!appointments.length) {
     return (
-      <div className="text-center py-10 text-slate-400 text-sm">
+      <div className="text-center py-10 text-dusty_grape text-sm bg-white border border-parchment-400 rounded-xl">
         No appointments found.
       </div>
     );
   }
 
   return (
-    <table className="w-full text-sm bg-white border border-slate-200 rounded-lg overflow-hidden">
-      <thead className="bg-slate-50 text-slate-600 text-left">
-        <tr>
-          <th className="px-4 py-2">Patient</th>
-          <th className="px-4 py-2">Doctor</th>
-          <th className="px-4 py-2">Date</th>
-          <th className="px-4 py-2">Status</th>
-          <th className="px-4 py-2">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {appointments.map((a) => (
-          <tr key={a.id} className="border-t border-slate-100">
-            <td className="px-4 py-2">{a.patient_name}</td>
-            <td className="px-4 py-2">{doctorName(a.doctor_id)}</td>
-            <td className="px-4 py-2">
-              {new Date(a.appointment_date).toLocaleString()}
-            </td>
-            <td className="px-4 py-2">
-              <span className={`px-2 py-1 rounded-full text-xs ${statusColor[a.status]}`}>
-                {a.status}
-              </span>
-            </td>
-            <td className="px-4 py-2 space-x-2">
-              <button
-                onClick={() => onEdit?.(a)}
-                className="text-xs px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => onCancel?.(a.id)}
-                className="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50"
-              >
-                Cancel
-              </button>
-            </td>
+    <div className="bg-white border border-parchment-400 rounded-xl overflow-hidden shadow-sm">
+      <table className="w-full text-sm">
+        <thead className="bg-space_indigo text-parchment text-left">
+          <tr>
+            <th className="px-4 py-3 font-semibold">Patient</th>
+            <th className="px-4 py-3 font-semibold">Doctor</th>
+            <th className="px-4 py-3 font-semibold">Date</th>
+            <th className="px-4 py-3 font-semibold">Status</th>
+            <th className="px-4 py-3 font-semibold">Actions</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody className="divide-y divide-parchment-400/50">
+          {appointments.map((a) => (
+            <tr key={a.id} className="hover:bg-parchment-900/40 transition">
+              <td className="px-4 py-3 font-medium text-space_indigo">{a.patient_name}</td>
+              <td className="px-4 py-3 text-dusty_grape">{getDoctorName(a)}</td>
+              <td className="px-4 py-3 text-dusty_grape">
+                {a.appointment_date ? new Date(a.appointment_date).toLocaleString() : ""}
+              </td>
+              <td className="px-4 py-3">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[a.status] || "bg-parchment-500 text-space_indigo"}`}>
+                  {a.status}
+                </span>
+              </td>
+              <td className="px-4 py-3 space-x-2">
+                <button
+                  onClick={() => onEdit?.(a)}
+                  className="text-xs px-2.5 py-1 rounded-md border border-dusty_grape-700 text-dusty_grape hover:bg-space_indigo hover:text-parchment transition"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => onCancel?.(a.id)}
+                  disabled={a.status === "cancelled"}
+                  className={`text-xs px-2.5 py-1 rounded-md border ${
+                    a.status === "cancelled"
+                      ? "border-parchment-400 text-lilac_ash-500 cursor-not-allowed opacity-60"
+                      : "border-red-300 text-red-600 hover:bg-red-50 transition"
+                  }`}
+                >
+                  Cancel
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ const cors = require("cors");
 
 const doctorsRouter = require("./routes/doctors");
 const appointmentsRouter = require("./routes/appointments");
+const authRouter = require("./routes/auth");
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.get("/", (req, res) => {
   res.json({ status: "ok", message: "Dental Clinic API is running" });
 });
 
+app.use("/api/auth", authRouter);
 app.use("/api/doctors", doctorsRouter);
 app.use("/api/appointments", appointmentsRouter);
 

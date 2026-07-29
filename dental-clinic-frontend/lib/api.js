@@ -1,9 +1,18 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+function getAuthToken() {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("token");
+  }
+  return null;
+}
+
 async function request(path, options = {}) {
+  const token = getAuthToken();
   const headers = {
     Accept: "application/json",
     ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -14,7 +23,14 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(errorText || `Request failed with status ${response.status}`);
+    let message = `Request failed with status ${response.status}`;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed && parsed.error) message = parsed.error;
+    } catch (e) {
+      if (errorText) message = errorText;
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) return null;
@@ -36,6 +52,25 @@ function normalizeAppointment(appointment) {
     patient_name: appointment.patient_name ?? appointment.patientName,
     appointment_date: appointment.appointment_date ?? appointment.appointmentDate,
   };
+}
+
+// Authentication API methods
+export async function registerUser(payload) {
+  return request("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function loginUser(credentials) {
+  return request("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+export async function getCurrentUser() {
+  return request("/api/auth/me", { cache: "no-store" });
 }
 
 export async function getDoctors() {
@@ -83,5 +118,6 @@ export async function updateAppointment(id, payload) {
 }
 
 export async function cancelAppointment(id) {
-  return request(`/api/appointments/${id}/cancel`, { method: "PATCH" });
+  const data = await request(`/api/appointments/${id}/cancel`, { method: "PATCH" });
+  return normalizeAppointment(data);
 }

@@ -1,10 +1,51 @@
+"use client";
+
+import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
+
 export default function Navbar() {
+  const { user, logout, loading } = useAuth();
+
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 justify-between">
-      <h1 className="text-lg font-semibold text-slate-800">
-        🦷 Dental Clinic Management
-      </h1>
-      <div className="text-sm text-slate-500">Staff Portal</div>
+    <header className="h-16 bg-space_indigo text-parchment flex items-center px-6 justify-between shadow-md">
+      <Link href="/dashboard" className="text-lg font-semibold tracking-wide flex items-center gap-2 hover:opacity-90 transition">
+        <span>🦷</span>
+        <span>Dental Clinic Portal</span>
+      </Link>
+
+      <div className="flex items-center gap-3">
+        {!loading && user ? (
+          <>
+            <div className="flex items-center gap-2 px-3 py-1 bg-space_indigo-400/30 border border-space_indigo-600 rounded-full text-xs">
+              <span className="font-semibold text-white">{user.name}</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider bg-almond_silk-500/20 text-almond_silk border border-almond_silk-400/40">
+                {user.role}
+              </span>
+            </div>
+            <button
+              onClick={logout}
+              className="text-xs px-3 py-1.5 rounded-lg border border-parchment-400/40 text-parchment hover:bg-parchment/10 transition"
+            >
+              Sign Out
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="text-xs px-3 py-1.5 rounded-lg border border-parchment-400/40 text-parchment hover:bg-parchment/10 transition"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/register"
+              className="text-xs px-3 py-1.5 bg-parchment text-space_indigo font-semibold rounded-lg hover:bg-parchment-900 transition"
+            >
+              Register
+            </Link>
+          </div>
+        )}
+      </div>
     </header>
   );
 }

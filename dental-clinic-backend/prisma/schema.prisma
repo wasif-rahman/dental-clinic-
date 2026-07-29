@@ -15,6 +15,7 @@ model Doctor {
   phone          String?
   createdAt      DateTime      @default(now()) @map("created_at")
   appointments   Appointment[]
+  users          User[]
 
   @@map("doctors")
 }
@@ -30,4 +31,17 @@ model Appointment {
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@map("appointments")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      String   @default("DOCTOR") // "ADMIN" or "DOCTOR"
+  name      String
+  doctorId  Int?     @map("doctor_id")
+  doctor    Doctor?  @relation(fields: [doctorId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
 }
