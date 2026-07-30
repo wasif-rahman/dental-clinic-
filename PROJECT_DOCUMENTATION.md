@@ -1,4 +1,4 @@
-# NextGen Dental Clinic Management Portal
+# Dental Clinic Management Portal
 ## Comprehensive Project Documentation & Technical Overview
 
 ---
