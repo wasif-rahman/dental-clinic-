@@ -14,7 +14,8 @@ export default function Navbar() {
       </Link>
 
       <div className="flex items-center gap-3">
-        {!loading && user ? (
+        {/* Only render the user badge and sign out button if a user is logged in */}
+        {!loading && user && (
           <>
             <div className="flex items-center gap-2 px-3 py-1 bg-space_indigo-400/30 border border-space_indigo-600 rounded-full text-xs">
               <span className="font-semibold text-white">{user.name}</span>
@@ -29,21 +30,6 @@ export default function Navbar() {
               Sign Out
             </button>
           </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className="text-xs px-3 py-1.5 rounded-lg border border-parchment-400/40 text-parchment hover:bg-parchment/10 transition"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/register"
-              className="text-xs px-3 py-1.5 bg-parchment text-space_indigo font-semibold rounded-lg hover:bg-parchment-900 transition"
-            >
-              Register
-            </Link>
-          </div>
         )}
       </div>
     </header>

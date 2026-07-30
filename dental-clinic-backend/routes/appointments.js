@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../prisma/client");
 const { validateAppointment } = require("../middleware/validate");
 const { authenticateToken } = require("../middleware/auth");
+const { sendAppointmentConfirmation } = require("../services/emailService"); // NEW: Import email service
 
 const router = express.Router();
 
@@ -14,8 +15,13 @@ router.get("/", async (req, res) => {
     const { doctorId, status, date } = req.query;
     const where = {};
 
+    // NEW: If logged in as PATIENT, strictly limit view to their own appointments
+    if (req.user && req.user.role === "PATIENT") {
+      if (!req.user.patientId) return res.status(403).json({ error: "No patient profile linked." });
+      where.patientId = req.user.patientId;
+    } 
     // If logged in as DOCTOR, restrict view to their own appointments unless doctorId parameter is explicitly requested by admin
-    if (req.user && req.user.role === "DOCTOR" && req.user.doctorId) {
+    else if (req.user && req.user.role === "DOCTOR" && req.user.doctorId) {
       where.doctorId = req.user.doctorId;
     } else if (doctorId) {
       where.doctorId = Number(doctorId);
@@ -31,7 +37,10 @@ router.get("/", async (req, res) => {
 
     const appointments = await prisma.appointment.findMany({
       where,
-      include: { doctor: true },
+      include: { 
+        doctor: true, 
+        patient: true // NEW: Include patient details in the response
+      },
       orderBy: { appointmentDate: "asc" },
     });
     res.json(appointments);
@@ -45,9 +54,14 @@ router.get("/:id", async (req, res) => {
   try {
     const appointment = await prisma.appointment.findUnique({
       where: { id: Number(req.params.id) },
-      include: { doctor: true },
+      include: { doctor: true, patient: true },
     });
     if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+    // NEW: Patient can only access their own appointment
+    if (req.user && req.user.role === "PATIENT" && appointment.patientId !== req.user.patientId) {
+      return res.status(403).json({ error: "Access denied to this appointment" });
+    }
 
     // Doctor can only access their own appointment
     if (req.user && req.user.role === "DOCTOR" && req.user.doctorId && appointment.doctorId !== req.user.doctorId) {
@@ -63,24 +77,43 @@ router.get("/:id", async (req, res) => {
 // POST /api/appointments
 router.post("/", validateAppointment, async (req, res) => {
   try {
+    // NEW: Prevent patients from scheduling directly (they must call admin or use a specific request route)
+    if (req.user && req.user.role === "PATIENT") {
+      return res.status(403).json({ error: "Patients cannot directly schedule appointments." });
+    }
+
     let doctorId = req.body.doctorId ?? req.body.doctor_id;
     if (req.user && req.user.role === "DOCTOR" && req.user.doctorId) {
       doctorId = req.user.doctorId;
     }
+    
     const patientName = req.body.patientName ?? req.body.patient_name;
+    const patientId = req.body.patientId ?? req.body.patient_id; // NEW: Extract patientId
     const appointmentDate = req.body.appointmentDate ?? req.body.appointment_date;
     const { status, notes } = req.body;
 
     const appointment = await prisma.appointment.create({
       data: {
         doctorId: Number(doctorId),
+        patientId: patientId ? Number(patientId) : null, // NEW: Link to patient if provided
         patientName,
         appointmentDate: new Date(appointmentDate),
         status: status || "scheduled",
         notes,
       },
-      include: { doctor: true },
+      include: { doctor: true, patient: true }, // NEW: Include patient to get the email address
     });
+
+    // NEW: Trigger confirmation email if a patient account is linked
+    if (appointment.patient && appointment.patient.email) {
+      sendAppointmentConfirmation(
+        appointment.patient.email,
+        appointment.patient.name,
+        appointment.appointmentDate,
+        appointment.doctor.name
+      ).catch(err => console.error("Non-blocking email failure:", err)); // Catches error without breaking the API response
+    }
+
     res.status(201).json(appointment);
   } catch (err) {
     res.status(400).json({ error: "Failed to create appointment. Check doctorId is valid." });
@@ -90,6 +123,11 @@ router.post("/", validateAppointment, async (req, res) => {
 // PUT /api/appointments/:id
 router.put("/:id", async (req, res) => {
   try {
+    // NEW: Block patients from editing appointments
+    if (req.user && req.user.role === "PATIENT") {
+      return res.status(403).json({ error: "Patients cannot modify appointments." });
+    }
+
     const existing = await prisma.appointment.findUnique({
       where: { id: Number(req.params.id) },
     });
@@ -109,11 +147,13 @@ router.put("/:id", async (req, res) => {
     }
 
     const patientName = req.body.patientName ?? req.body.patient_name;
+    const patientId = req.body.patientId ?? req.body.patient_id; // NEW
     const appointmentDate = req.body.appointmentDate ?? req.body.appointment_date;
     const { status, notes } = req.body;
 
     const data = {};
     if (doctorId !== undefined && doctorId !== "") data.doctorId = Number(doctorId);
+    if (patientId !== undefined && patientId !== "") data.patientId = Number(patientId); // NEW
     if (patientName !== undefined && patientName !== "") data.patientName = patientName;
     if (appointmentDate !== undefined && appointmentDate !== "") {
       const parsedDate = new Date(appointmentDate);
@@ -128,7 +168,7 @@ router.put("/:id", async (req, res) => {
     const appointment = await prisma.appointment.update({
       where: { id: Number(req.params.id) },
       data,
-      include: { doctor: true },
+      include: { doctor: true, patient: true },
     });
     res.json(appointment);
   } catch (err) {
@@ -142,6 +182,11 @@ router.put("/:id", async (req, res) => {
 // PATCH /api/appointments/:id/cancel
 router.patch("/:id/cancel", async (req, res) => {
   try {
+    // NEW: Block patients from cancelling here (or allow them if you prefer, but usually clinic policy requires calling)
+    if (req.user && req.user.role === "PATIENT") {
+      return res.status(403).json({ error: "Please contact the clinic to cancel an appointment." });
+    }
+
     const existing = await prisma.appointment.findUnique({
       where: { id: Number(req.params.id) },
     });
@@ -168,6 +213,10 @@ router.patch("/:id/cancel", async (req, res) => {
 // DELETE /api/appointments/:id
 router.delete("/:id", async (req, res) => {
   try {
+    if (req.user && req.user.role === "PATIENT") {
+      return res.status(403).json({ error: "Access denied." });
+    }
+
     const existing = await prisma.appointment.findUnique({
       where: { id: Number(req.params.id) },
     });

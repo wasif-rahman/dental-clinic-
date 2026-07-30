@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Doctor {
@@ -20,15 +21,29 @@ model Doctor {
   @@map("doctors")
 }
 
+model Patient {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  phone        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  appointments Appointment[]
+  users        User[]
+
+  @@map("patients")
+}
+
 model Appointment {
-  id               Int      @id @default(autoincrement())
-  doctorId         Int      @map("doctor_id")
-  doctor           Doctor   @relation(fields: [doctorId], references: [id])
-  patientName      String   @map("patient_name")
-  appointmentDate  DateTime @map("appointment_date")
-  status           String   @default("scheduled")
-  notes            String?
-  createdAt        DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  doctorId        Int      @map("doctor_id")
+  doctor          Doctor   @relation(fields: [doctorId], references: [id])
+  patientId       Int?     @map("patient_id")
+  patient         Patient? @relation(fields: [patientId], references: [id])
+  patientName     String   @map("patient_name")
+  appointmentDate DateTime @map("appointment_date")
+  status          String   @default("scheduled")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("appointments")
 }
@@ -37,10 +52,15 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
-  role      String   @default("DOCTOR") // "ADMIN" or "DOCTOR"
+  role      String   @default("DOCTOR") // "ADMIN", "DOCTOR", or "PATIENT"
+  status    String   @default("APPROVED") // "PENDING", "APPROVED", or "REJECTED"
   name      String
   doctorId  Int?     @map("doctor_id")
   doctor    Doctor?  @relation(fields: [doctorId], references: [id])
+  patientId Int?     @map("patient_id")
+  patient   Patient? @relation(fields: [patientId], references: [id])
+  resetToken        String?   @map("reset_token")
+  resetTokenExpiry  DateTime? @map("reset_token_expiry")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("users")

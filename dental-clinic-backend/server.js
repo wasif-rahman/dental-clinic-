@@ -18,6 +18,8 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/doctors", doctorsRouter);
 app.use("/api/appointments", appointmentsRouter);
+app.use('/api/patients', require('./routes/patients'));
+
 
 // Fallback error handler
 app.use((err, req, res, next) => {

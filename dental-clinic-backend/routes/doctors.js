@@ -73,9 +73,9 @@ router.delete("/:id", authorizeRoles("ADMIN"), async (req, res) => {
       return res.status(404).json({ error: "Doctor not found" });
     }
 
-    await prisma.$transaction([
+   await prisma.$transaction([
       prisma.appointment.deleteMany({ where: { doctorId: id } }),
-      prisma.user.updateMany({ where: { doctorId: id }, data: { doctorId: null } }),
+      prisma.user.deleteMany({ where: { doctorId: id } }), // <-- UPDATED: Deletes the login account too
       prisma.doctor.delete({ where: { id } }),
     ]);
 

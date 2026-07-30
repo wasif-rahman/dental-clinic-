@@ -1,3 +1,4 @@
+const bcrypt = require("bcryptjs");
 const prisma = require("./client");
 
 const doctorSeeds = [
@@ -82,15 +83,19 @@ const appointmentSeeds = [
 ];
 
 async function main() {
+  console.log("Cleaning old database records...");
   await prisma.appointment.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.doctor.deleteMany();
 
+  console.log("Seeding doctors...");
   const createdDoctors = [];
   for (const doctor of doctorSeeds) {
     const createdDoctor = await prisma.doctor.create({ data: doctor });
     createdDoctors.push(createdDoctor);
   }
 
+  console.log("Seeding appointments...");
   const appointments = appointmentSeeds.map((appointment) => {
     const doctor = createdDoctors.find((item) => item.name === appointment.doctorName);
     return {
@@ -104,7 +109,38 @@ async function main() {
 
   await prisma.appointment.createMany({ data: appointments });
 
-  console.log(`Seed complete. Added ${createdDoctors.length} doctors and ${appointments.length} appointments.`);
+  console.log("Seeding user accounts...");
+  const hashedAdminPassword = await bcrypt.hash("adminpassword", 10);
+  const hashedDoctorPassword = await bcrypt.hash("doctorpassword", 10);
+
+  // Admin user
+  await prisma.user.create({
+    data: {
+      email: "admin@clinic.com",
+      password: hashedAdminPassword,
+      name: "Clinic Administrator",
+      role: "ADMIN",
+    },
+  });
+
+  // Doctor users linked to their respective seeded Doctor records
+  for (const doctor of createdDoctors) {
+    await prisma.user.create({
+      data: {
+        email: doctor.email.toLowerCase().trim(),
+        password: hashedDoctorPassword,
+        name: doctor.name,
+        role: "DOCTOR",
+        doctorId: doctor.id,
+      },
+    });
+  }
+
+  console.log(`Seed complete!`);
+  console.log(`- Created ${createdDoctors.length} doctors`);
+  console.log(`- Created ${appointments.length} appointments`);
+  console.log(`- Created 1 Admin account (admin@clinic.com / adminpassword)`);
+  console.log(`- Created ${createdDoctors.length} Doctor accounts (password: doctorpassword)`);
 }
 
 main()
