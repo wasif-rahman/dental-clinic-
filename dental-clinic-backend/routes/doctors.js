@@ -53,17 +53,36 @@ router.put("/:id", authorizeRoles("ADMIN"), validateDoctor, async (req, res) => 
     });
     res.json(doctor);
   } catch (err) {
-    res.status(404).json({ error: "Doctor not found" });
+    if (err.code === "P2025") {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+    res.status(500).json({ error: "Failed to update doctor" });
   }
 });
 
 // DELETE /api/doctors/:id (Admin only)
 router.delete("/:id", authorizeRoles("ADMIN"), async (req, res) => {
   try {
-    await prisma.doctor.delete({ where: { id: Number(req.params.id) } });
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid doctor ID" });
+    }
+
+    const doctor = await prisma.doctor.findUnique({ where: { id } });
+    if (!doctor) {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+
+    await prisma.$transaction([
+      prisma.appointment.deleteMany({ where: { doctorId: id } }),
+      prisma.user.updateMany({ where: { doctorId: id }, data: { doctorId: null } }),
+      prisma.doctor.delete({ where: { id } }),
+    ]);
+
     res.status(204).send();
   } catch (err) {
-    res.status(404).json({ error: "Doctor not found" });
+    console.error("Error deleting doctor:", err);
+    res.status(500).json({ error: "Failed to delete doctor" });
   }
 });
 

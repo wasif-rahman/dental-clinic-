@@ -55,11 +55,13 @@ export default function DoctorsPage() {
   }
 
   async function handleDelete(id) {
+    if (!window.confirm("Are you sure you want to delete this doctor?")) return;
     try {
       await deleteDoctor(id);
       setDoctors((prev) => prev.filter((d) => d.id !== id));
     } catch (error) {
       console.error("Failed to delete doctor", error);
+      alert(error.message || "Failed to delete doctor");
     }
   }
 
