@@ -2,24 +2,36 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { getDoctors } from "../../lib/api";
 
 export default function PatientsPage() {
   const { user } = useAuth();
   const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   // Modal & Form state for adding a patient
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", assignedDoctorId: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const isAdmin = user?.role === "ADMIN";
 
   useEffect(() => {
     fetchPatients();
+    fetchDoctorsList();
   }, []);
+
+  async function fetchDoctorsList() {
+    try {
+      const data = await getDoctors();
+      setDoctors(data || []);
+    } catch (err) {
+      console.error("Failed to load doctors list", err);
+    }
+  }
 
   async function fetchPatients() {
     try {
@@ -62,14 +74,19 @@ export default function PatientsPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          assignedDoctorId: form.assignedDoctorId || null,
+        }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create patient.");
+      if (!res.ok) throw new Error(data.error || "Failed to save patient.");
 
       setSuccess(data.message);
-      setForm({ name: "", email: "", phone: "" });
+      setForm({ name: "", email: "", phone: "", assignedDoctorId: "" });
       setModalOpen(false);
       fetchPatients(); // Refresh list
     } catch (err) {
@@ -92,7 +109,7 @@ export default function PatientsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-space_indigo tracking-tight">Patient Directory</h1>
-          <p className="text-sm text-dusty_grape mt-1">Manage registered clinic patients and view their visit history.</p>
+          <p className="text-sm text-dusty_grape mt-1">Manage registered clinic patients, assign doctors, and view visit history.</p>
         </div>
 
         {isAdmin && (
@@ -106,7 +123,7 @@ export default function PatientsPage() {
       </div>
 
       {error && <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium border border-red-200">{error}</div>}
-      {success && <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-xl text-sm font-medium border border-green-200">{success}</div>}
+      {success && <div className="mb-6 p-4 bg-emerald-50 text-emerald-800 rounded-xl text-sm font-medium border border-emerald-200 flex items-center gap-2"><span>ℹ️</span> {success}</div>}
 
       {/* PATIENTS TABLE / GRID */}
       {patients.length === 0 ? (
@@ -123,6 +140,7 @@ export default function PatientsPage() {
                   <th className="p-4">Name</th>
                   <th className="p-4">Email</th>
                   <th className="p-4">Phone</th>
+                  <th className="p-4">Assigned Doctor</th>
                   <th className="p-4">Appointments</th>
                   <th className="p-4">Registered</th>
                 </tr>
@@ -133,6 +151,15 @@ export default function PatientsPage() {
                     <td className="p-4 font-semibold text-space_indigo">{p.name}</td>
                     <td className="p-4 text-dusty_grape">{p.email}</td>
                     <td className="p-4 text-dusty_grape">{p.phone || "N/A"}</td>
+                    <td className="p-4 font-medium text-space_indigo">
+                      {p.assignedDoctor ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100/80 text-emerald-800 border border-emerald-200">
+                          👨‍⚕️ Dr. {p.assignedDoctor.name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-dusty_grape italic">Not assigned</span>
+                      )}
+                    </td>
                     <td className="p-4">
                       <span className="px-2.5 py-1 bg-space_indigo-50 text-space_indigo font-semibold rounded-full text-xs">
                         {p.appointments?.length || 0} visits
@@ -151,8 +178,8 @@ export default function PatientsPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-parchment-400">
-            <h3 className="text-xl font-bold text-space_indigo mb-1">Add New Patient</h3>
-            <p className="text-xs text-dusty_grape mb-6">Temporary login credentials will be automatically emailed to the patient.</p>
+            <h3 className="text-xl font-bold text-space_indigo mb-1">Add or Update Patient</h3>
+            <p className="text-xs text-dusty_grape mb-6">If patient already exists, their information and assigned doctor will be updated.</p>
 
             <form onSubmit={handleCreatePatient} className="space-y-4">
               <div>
@@ -188,6 +215,22 @@ export default function PatientsPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-space_indigo mb-1">Assign Doctor (Optional)</label>
+                <select
+                  value={form.assignedDoctorId}
+                  onChange={(e) => setForm({ ...form, assignedDoctorId: e.target.value })}
+                  className="w-full px-3.5 py-2.5 border border-parchment-400 rounded-xl text-sm focus:ring-2 focus:ring-space_indigo-600 focus:outline-none bg-white"
+                >
+                  <option value="">-- Select Doctor --</option>
+                  {doctors.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      Dr. {d.name} ({d.specialization || "General"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-3 mt-6">
                 <button
                   type="button"
@@ -201,7 +244,7 @@ export default function PatientsPage() {
                   disabled={submitting}
                   className="flex-1 py-2.5 bg-space_indigo text-parchment font-semibold rounded-xl text-sm shadow-sm hover:bg-space_indigo-600 transition disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "Save & Email"}
+                  {submitting ? "Saving..." : "Save Patient"}
                 </button>
               </div>
             </form>

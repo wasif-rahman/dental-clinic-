@@ -16,6 +16,7 @@ router.get("/", authenticateToken, async (req, res) => {
       orderBy: { createdAt: "desc" },
       include: {
         appointments: true, // Includes upcoming appointments
+        assignedDoctor: true, // Includes assigned doctor details
       }
     });
     res.json(patients);
@@ -26,7 +27,7 @@ router.get("/", authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// POST /api/patients (Admin Creates Patient)
+// POST /api/patients (Admin Creates/Updates Patient)
 // ==========================================
 router.post("/", authenticateToken, async (req, res) => {
   try {
@@ -35,18 +36,46 @@ router.post("/", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Only administrators can add new patients." });
     }
 
-    const { name, email, phone } = req.body;
+    const { name, email, phone, assignedDoctorId } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({ error: "Patient name and email are required." });
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+    const doctorIdNum = assignedDoctorId ? Number(assignedDoctorId) : null;
+
     // 1. Check if patient or user email already exists
-    const existingPatient = await prisma.patient.findUnique({ where: { email: email.toLowerCase().trim() } });
-    const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-    
-    if (existingPatient || existingUser) {
-      return res.status(409).json({ error: "An account with this email already exists in the system." });
+    const existingPatient = await prisma.patient.findUnique({
+      where: { email: cleanEmail },
+      include: { assignedDoctor: true, appointments: true }
+    });
+
+    if (existingPatient) {
+      // Patient already exists -> Update name, phone, assignedDoctor
+      const updatedPatient = await prisma.patient.update({
+        where: { id: existingPatient.id },
+        data: {
+          name: name || existingPatient.name,
+          phone: phone !== undefined ? phone : existingPatient.phone,
+          assignedDoctorId: doctorIdNum,
+        },
+        include: {
+          appointments: true,
+          assignedDoctor: true,
+        },
+      });
+
+      return res.status(200).json({
+        message: `Existing patient record found for ${cleanEmail}. Profile and doctor assignment updated.`,
+        patient: updatedPatient,
+        isExisting: true,
+      });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    if (existingUser && !existingUser.patientId) {
+      return res.status(409).json({ error: "An account with this email already exists as staff/doctor." });
     }
 
     // 2. Generate a secure, temporary password (8 characters)
@@ -54,20 +83,23 @@ router.post("/", authenticateToken, async (req, res) => {
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     // 3. Create Patient and linked User inside a Prisma Transaction
-    // Transactions ensure if one fails, the other rolls back automatically
     const result = await prisma.$transaction(async (tx) => {
-      
       const newPatient = await tx.patient.create({
         data: {
           name,
-          email: email.toLowerCase().trim(),
+          email: cleanEmail,
           phone: phone || null,
+          assignedDoctorId: doctorIdNum,
         },
+        include: {
+          assignedDoctor: true,
+          appointments: true,
+        }
       });
 
       const newUser = await tx.user.create({
         data: {
-          email: email.toLowerCase().trim(),
+          email: cleanEmail,
           password: hashedPassword,
           name,
           role: "PATIENT",
@@ -80,18 +112,18 @@ router.post("/", authenticateToken, async (req, res) => {
     });
 
     // 4. Send the credentials email asynchronously
-    // We don't await this so the API responds faster to the frontend
     sendPatientCredentialsEmail(result.newPatient.email, result.newPatient.name, rawPassword)
       .catch(err => console.error("Non-blocking email failure:", err));
 
     res.status(201).json({
-      message: "Patient registered successfully and credentials sent via email.",
+      message: "Patient registered successfully and temporary credentials sent via email.",
       patient: result.newPatient,
+      isExisting: false,
     });
 
   } catch (err) {
     console.error("Patient creation error:", err);
-    res.status(500).json({ error: "Failed to create patient." });
+    res.status(500).json({ error: "Failed to process patient record." });
   }
 });
 

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { getCurrentUser, loginUser, registerUser } from "../lib/api";
+import GreetingOverlay from "../components/GreetingOverlay";
 
 const AuthContext = createContext({
   user: null,
@@ -18,6 +19,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [greetingState, setGreetingState] = useState({
+    active: false,
+    type: "login",
+    user: null,
+  });
 
   useEffect(() => {
     async function initAuth() {
@@ -46,6 +52,11 @@ export function AuthProvider({ children }) {
       localStorage.setItem("token", res.token);
       setToken(res.token);
       setUser(res.user);
+
+      // Trigger Welcome Glassmorphism Overlay
+      setGreetingState({ active: true, type: "login", user: res.user });
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      setGreetingState({ active: false, type: "login", user: null });
     }
     return res;
   }
@@ -61,12 +72,25 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    localStorage.removeItem("token");
-    setToken(null);
-    setUser(null);
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
+    if (!user) {
+      localStorage.removeItem("token");
+      setToken(null);
+      setUser(null);
+      if (typeof window !== "undefined") window.location.href = "/login";
+      return;
     }
+
+    // Trigger Goodbye Glassmorphism Overlay
+    setGreetingState({ active: true, type: "logout", user });
+    setTimeout(() => {
+      localStorage.removeItem("token");
+      setToken(null);
+      setUser(null);
+      setGreetingState({ active: false, type: "logout", user: null });
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }, 1800);
   }
 
   const isAdmin = user?.role === "ADMIN";
@@ -85,6 +109,11 @@ export function AuthProvider({ children }) {
         isDoctor,
       }}
     >
+      <GreetingOverlay
+        active={greetingState.active}
+        type={greetingState.type}
+        user={greetingState.user}
+      />
       {children}
     </AuthContext.Provider>
   );

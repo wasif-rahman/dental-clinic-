@@ -17,18 +17,21 @@ model Doctor {
   createdAt      DateTime      @default(now()) @map("created_at")
   appointments   Appointment[]
   users          User[]
+  assignedPatients Patient[]
 
   @@map("doctors")
 }
 
 model Patient {
-  id           Int           @id @default(autoincrement())
-  name         String
-  email        String        @unique
-  phone        String?
-  createdAt    DateTime      @default(now()) @map("created_at")
-  appointments Appointment[]
-  users        User[]
+  id               Int           @id @default(autoincrement())
+  name             String
+  email            String        @unique
+  phone            String?
+  assignedDoctorId Int?          @map("assigned_doctor_id")
+  assignedDoctor   Doctor?       @relation(fields: [assignedDoctorId], references: [id])
+  createdAt        DateTime      @default(now()) @map("created_at")
+  appointments     Appointment[]
+  users            User[]
 
   @@map("patients")
 }

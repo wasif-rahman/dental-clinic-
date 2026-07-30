@@ -1,6 +1,6 @@
 # Dental Clinic Management System — Frontend
 
-Next.js (App Router) frontend for the Dental Clinic Management System intern project.
+Next.js 14 (App Router) + Tailwind CSS frontend for the NextGen Dental Clinic Portal.
 
 ## Setup
 
@@ -9,38 +9,36 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 — it redirects you into `/dashboard`.
+Open http://localhost:3000 — it redirects to `/login` if unauthenticated or `/dashboard` when logged in.
 
 ## Structure
 
 ```
 app/
-  layout.jsx          # shared Navbar + Sidebar
-  page.jsx            # landing page
-  dashboard/page.jsx  # summary widgets
-  doctors/page.jsx    # doctor list + add/edit/delete
-  appointments/page.jsx # appointment list + filters
+  layout.jsx          # Shared Navbar + Sidebar wrapper
+  page.jsx            # Landing page
+  login/page.jsx      # Login page with password visibility toggle & forgot password link
+  register/page.jsx   # Doctor registration request page (Requires Admin Approval)
+  dashboard/page.jsx  # Summary widgets (Stats, Quick actions)
+  doctors/page.jsx    # Doctor directory (+ Add Doctor for Admin only; browse for Patients)
+  patients/page.jsx   # Patient directory (+ Add Patient, Doctor Assignment, Existing patient update)
+  appointments/page.jsx # Appointment schedule & status filters
 components/
-  Navbar.jsx
-  Sidebar.jsx
-  DoctorCard.jsx
-  AppointmentTable.jsx
-  Modal.jsx
-  States.jsx          # Loading / Empty
-lib/
-  mock-data.js         # simulated API responses (swap for real fetch later)
+  Navbar.jsx          # Top user status bar
+  Sidebar.jsx         # Navigation drawer (Role-filtered)
+  DoctorCard.jsx      # Doctor profile card with conditional Admin actions
+  GreetingOverlay.jsx # Glassmorphism animated Welcome & Logout full-screen overlay
+  AppointmentTable.jsx# Schedule view
+  Modal.jsx           # Reusable modal overlay
+  States.jsx          # Loading & Empty indicators
+context/
+  AuthContext.jsx     # JWT Auth state, role flags (isAdmin, isDoctor), & greeting trigger
 ```
 
-## Notes
+## Features
 
-- All data currently comes from `lib/mock-data.js`. Once the backend (Express + SQLite) is live,
-  replace the `getDoctors()` / `getAppointments()` calls with real `fetch()` calls to
-  `process.env.NEXT_PUBLIC_API_URL`.
-- Server Components are the default; only `doctors/page.jsx`, `appointments/page.jsx`,
-  `Sidebar.jsx`, and `Modal.jsx` are Client Components (`"use client"`) because they need
-  state or interactivity.
-- Deployment target: Render (Web Service, not Static Site — Next.js needs a Node server).
+- **Role-Based Views**: Admin, Doctor, and Patient access controls.
+- **Glassmorphism Greeting Overlay**: Animated Welcome and Logout overlay customized per user role.
+- **Doctor Directory Access**: Patients can browse doctor specializations in read-only mode while Admins manage staff.
+- **Doctor Assignment & Existing Patients**: Assign doctors when adding patients; handles existing patient emails gracefully with update notifications.
 
-## Known limitation
-
-Backend SQLite file resets on redeploy on Render's free tier (ephemeral filesystem) — expected, not a bug.
