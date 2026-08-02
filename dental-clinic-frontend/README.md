@@ -1,4 +1,4 @@
-# Dental Clinic Management System — Frontend
+# Dental Clinic Management System Frontend
 
 Next.js 14 (App Router) + Tailwind CSS frontend for the NextGen Dental Clinic Portal.
 
@@ -15,7 +15,7 @@ Open http://localhost:3000 — it redirects to `/login` if unauthenticated or `/
 
 ```
 app/
-  layout.jsx          # Shared Navbar + Sidebar wrapper
+  layout.jsx          ## Shared Navbar + Sidebar wrapper
   page.jsx            # Landing page
   login/page.jsx      # Login page with password visibility toggle & forgot password link
   register/page.jsx   # Doctor registration request page (Requires Admin Approval)
